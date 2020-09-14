@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Yahtzee!!!</title>
+  <link rel="stylesheet" href="style.css" type="text/css" media="all">
+</head>
+<body>
+
+<h1>Yahtzee!!!</h1>
+
+
+<!-- LoadingScene -->
+<section id="loadingScene">
+  <img src="/image/loading.svg" width="100"><br>
+  ...必要なアセットを読み込み中
+</section>
+<!-- /LoadingScene -->
+
+
+<!-- ConectingScene -->
+<section id="conectingScene">
+  <img src="/image/loading.svg" width="100"><br>
+  ...サーバに接続中
+</section>
+<!-- /ConectingScene -->
+
+
+<!-- TitleScene -->
+<section id="titleScene">
+  <p>ヤッツィー（not ヨット）</p>
+
+  <button id="startBtn">対戦開始</button>
+</section>
+<!-- /TitleScene -->
+
+
+<!-- WaitOtherPlayerScene -->
+<section id="waitOtherPlayerScene">
+  対戦相手を待っています。少しお待ちください
+</section>
+<!-- /WaitOtherPlayerScene -->
+
+
+<!-- BattleScene -->
+<section id="battleScene">
+  <canvas id="battlefield" width="600" height="400"></canvas>
+</section>
+<!-- /BattleScene -->
+
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="util.js"></script>
+<script src="app.js"></script>
+
+</body>
+</html>

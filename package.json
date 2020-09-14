@@ -1,0 +1,23 @@
+{
+  "name": "schoolproject_yahtzee",
+  "version": "1.0.0",
+  "description": "",
+  "main": "serve.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tktk2104/SchoolProject_Yahtzee.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/tktk2104/SchoolProject_Yahtzee/issues"
+  },
+  "homepage": "https://github.com/tktk2104/SchoolProject_Yahtzee#readme",
+  "dependencies": {
+    "express": "^4.17.1",
+    "socket.io": "^2.3.0"
+  }
+}

@@ -1,0 +1,43 @@
+@charset "utf8";
+
+/* LoadingScene */
+#loadingScene
+{
+  text-align  : center;
+}
+
+/* ConectingScene */
+#conectingScene
+{
+  display     :none;
+  text-align  : center;
+}
+
+/* TitleScene */
+#titleScene
+{
+  display     :none;
+}
+#startBtn
+{
+  width       : 600px;
+  height      : 50px;
+  font-size   : 12pt;
+  margin-top  : 30px;
+}
+
+/* WaitOtherPlayerScene */
+#waitOtherPlayerScene
+{
+  display     :none;
+}
+
+/* BattleScene */
+#battleScene
+{
+  display     :none;
+}
+#battlefield
+{
+  border      : 1px solid gray;
+}
