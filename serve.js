@@ -244,7 +244,7 @@ io.on("connection", (socket)=>{
     }
     
     // 頭が回らないので脳死ごり押し
-    let kindDiceCounts = [0, 0, 0, 0, 0];
+    let kindDiceCounts = [0, 0, 0, 0, 0, 0];
     let sum = 0;
     let noKindDiceType = 0;
 
@@ -363,7 +363,7 @@ io.on("connection", (socket)=>{
           kindDiceCounts[PRE_DICE_RESULTS[i] - 1]++;
         }
 
-        if (kindDiceCounts[0] >= 3 || kindDiceCounts[1] >= 3 || kindDiceCounts[2] >= 3 || kindDiceCounts[3] >= 3 || kindDiceCounts[4] >= 3)
+        if (kindDiceCounts[0] >= 3 || kindDiceCounts[1] >= 3 || kindDiceCounts[2] >= 3 || kindDiceCounts[3] >= 3 || kindDiceCounts[4] >= 3 || kindDiceCounts[5] >= 3)
         {
           MEMBER[socket.id].score.threeKind.point = sum;
         }
@@ -386,7 +386,7 @@ io.on("connection", (socket)=>{
           kindDiceCounts[PRE_DICE_RESULTS[i] - 1]++;
         }
 
-        if (kindDiceCounts[0] >= 4 || kindDiceCounts[1] >= 4 || kindDiceCounts[2] >= 4 || kindDiceCounts[3] >= 4 || kindDiceCounts[4] >= 4)
+        if (kindDiceCounts[0] >= 4 || kindDiceCounts[1] >= 4 || kindDiceCounts[2] >= 4 || kindDiceCounts[3] >= 4 || kindDiceCounts[4] >= 4 || kindDiceCounts[5] >= 4)
         {
           MEMBER[socket.id].score.fourKind.point = sum;
         }
@@ -412,7 +412,7 @@ io.on("connection", (socket)=>{
           if (kindDiceCounts[i] == 0) noKindDiceType++;
         }
 
-        
+        console.log(kindDiceCounts);
 
         if (noKindDiceType == 3)
         {
@@ -434,10 +434,17 @@ io.on("connection", (socket)=>{
         for(let i = 0; i < PRE_DICE_RESULTS.length; i++)
         {
           kindDiceCounts[PRE_DICE_RESULTS[i] - 1]++;
+
+          if (kindDiceCounts[PRE_DICE_RESULTS[i] - 1] > 1) break;
         }
 
-        if (kindDiceCounts[1] == 0 || kindDiceCounts[2] == 0 || kindDiceCounts[3] == 0) break;
+        if (kindDiceCounts[2] == 0 || kindDiceCounts[3] == 0) break;
 
+        if (kindDiceCounts[0] == 1 && kindDiceCounts[1] == 0) break;
+
+        if (kindDiceCounts[4] == 0 && kindDiceCounts[5] == 1) break;
+
+        // 以下の文が蛇足かどうか後で調べる（９割９分蛇足）
         for(let i = 0; i < kindDiceCounts.length; i++)
         {
           if (kindDiceCounts[i] == 0) noKindDiceType++;

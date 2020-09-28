@@ -327,7 +327,7 @@ function drawScoreBoard(name, score, x, y)
 
   // サイコロの役の得点の描画
   if (score.aces.using)   ctx.fillText(score.aces.point,            x + 90, y + 60);
-  if (score.aces.using)   ctx.fillText(score.aces.point,            x + 90, y + 60);
+  if (score.twos.using)   ctx.fillText(score.twos.point,            x + 90, y + 60);
   if (score.threes.using) ctx.fillText(score.threes.point,          x + 90, y + 100);
   if (score.fours.using)  ctx.fillText(score.fours.point,           x + 90, y + 120);
   if (score.fives.using)  ctx.fillText(score.fives.point,           x + 90, y + 140);
