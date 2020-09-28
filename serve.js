@@ -25,13 +25,14 @@ const MAX_HEIGHT = 400;     // 高さ
 //-----------------------------------------------
 // グローバル変数
 //-----------------------------------------------
-// 参加者一覧
+// 接続してきたユーザーの一覧
 const MEMBER = {};
   // ↑以下のような内容のデータが入る
   // {
   //   "socket.id":{ 
   //            token:"abcd",
   //            count:1,
+  //            name:"player1",
   //            score:{ 
   //              aces:     { using:false, point:0 }, 
   //              twos:     { using:false, point:0 },
@@ -50,7 +51,7 @@ const MEMBER = {};
   //      }
   // }
 
-// 参加者を順番に取り出す用の配列
+// ゲームに参加しているユーザーの一覧
 const MEMBER_SORT = [];
 
 // 延べ参加者数
@@ -61,6 +62,15 @@ const MAX_JOIN_COUNT = 2;
 
 // 現在の参加人数
 let CUR_JOIN_COUNT = 0;
+
+// 現在のターンプレイヤーの公開トークン
+let CUR_TURN_PLAYER_TOKEN = null;
+
+// 振り直しできる残り回数
+let REROLL_COUNT = 3;
+
+// 直前のダイスロールの結果
+let PRE_DICE_RESULTS = [ 0, 0, 0, 0, 0 ];
 
 //-----------------------------------------------
 // HTTPサーバ (express)
@@ -88,7 +98,7 @@ io.on("connection", (socket)=>{
     const token = makeToken(socket.id);
 
     // ユーザーリストに追加
-    MEMBER[socket.id] = { token:token, count:MEMBER_COUNT, score:null };
+    MEMBER[socket.id] = { token:token, count:MEMBER_COUNT, name:null, score:null };
     MEMBER_COUNT++;
 
     // デバック用出力
@@ -137,37 +147,396 @@ io.on("connection", (socket)=>{
     };
 
     // ユーザー情報を追加
+    MEMBER[socket.id].name = data.name;
     MEMBER[socket.id].score = score;
     MEMBER_SORT.push(socket.id);
 
     // デバック用出力
-    console.log(`joinUser: socketid=${socket.id} curJoinCount=${CUR_JOIN_COUNT}`);
+    console.log(`joinUser: socketid=${socket.id} name=${data.name} curJoinCount=${CUR_JOIN_COUNT}`);
 
-    // 入室イベント結果を送信者のみに通知
-    io.to(socket.id).emit("join-result", { status:true, users:getMemberList(socket.id), canStart:(CUR_JOIN_COUNT === MAX_JOIN_COUNT) });
+    // 送信者以外のユーザー情報を送信者に通知（識別用のトークンは公開用）
+    io.to(socket.id).emit("join-result", { status:true, users:getOtherMemberList(socket.id), canStart:(CUR_JOIN_COUNT === MAX_JOIN_COUNT) });
+
+    // 送信者のユーザー情報を送信者に通知（識別用のトークンは非公開用）
+    io.to(socket.id).emit("member-join", { token: MEMBER[socket.id].token, name:data.name, score: score });
+
+    // 送信者のユーザー情報を送信者以外に通知（識別用のトークンは公開用）
+    socket.broadcast.emit("member-join", { token: MEMBER[socket.id].count, name:data.name, score: score });
 
     // 開始可能状態だったら、送信者以外に開始可能通知を送る
     if (CUR_JOIN_COUNT === MAX_JOIN_COUNT)
     {
+      // 最初に接続したプレイヤーをターンプレイヤーにする
+      CUR_TURN_PLAYER_TOKEN = MEMBER[socket.id].count;
+
       // デバック用出力
-      console.log(`startBattle`);
+      console.log(`startBattle: trunPlayerToken=${CUR_TURN_PLAYER_TOKEN}`);
 
       socket.broadcast.emit("canStartCheck", { canStart:true });
     }
+  });
 
-    // 全てのユーザーに追加されたユーザー情報を通知する
-    io.to(socket.id).emit("member-join", {
-      token: MEMBER[socket.id].token,   // 秘密トークン
-      score: score                      // 初期スコア
-    });
-    socket.broadcast.emit("member-join", {
-      token: MEMBER[socket.id].count,   // 公開トークン
-      score: score                      // 初期スコア
-    });
+  // ダイスロールイベント時の処理
+  socket.on("diceRoll", (data)=>{
+
+    // トークンをチェック
+    if(!authToken(socket.id, data.token))
+    {
+      io.to(socket.id).emit("diceRoll-result", {status:false, message:"不正なトークンです"});
+      return(false);
+    }
+
+    // ターンプレイヤーかチェック
+    if (MEMBER[socket.id].count != CUR_TURN_PLAYER_TOKEN)
+    {
+      io.to(socket.id).emit("diceRoll-result", {status:false, message:"ターンプレイヤーではありません"});
+      return(false);
+    }
+
+    // もしも振り直し回数が０だったら
+    if (REROLL_COUNT == 0)
+    {
+      io.to(socket.id).emit("diceRoll-result", {status:false, message:"もうサイコロは振れません"});
+      return(false);
+    }
+
+    // 出目を更新する
+    if (REROLL_COUNT == 3 || !data.lock[0]) PRE_DICE_RESULTS[0] = Math.floor(Math.random() * Math.floor(6)) + 1;
+    if (REROLL_COUNT == 3 || !data.lock[1]) PRE_DICE_RESULTS[1] = Math.floor(Math.random() * Math.floor(6)) + 1;
+    if (REROLL_COUNT == 3 || !data.lock[2]) PRE_DICE_RESULTS[2] = Math.floor(Math.random() * Math.floor(6)) + 1;
+    if (REROLL_COUNT == 3 || !data.lock[3]) PRE_DICE_RESULTS[3] = Math.floor(Math.random() * Math.floor(6)) + 1;
+    if (REROLL_COUNT == 3 || !data.lock[4]) PRE_DICE_RESULTS[4] = Math.floor(Math.random() * Math.floor(6)) + 1;
+
+    // もしも振り直し回数が残っていたら
+    if (REROLL_COUNT > 0)
+    {
+      // 振り直し回数を減らす
+      REROLL_COUNT--;
+    }
+
+    console.log(`diceRoll: socketid=${socket.id} result=${PRE_DICE_RESULTS} rerollCount=${REROLL_COUNT}`);
+
+    io.to(socket.id).emit("diceRoll-result", { status:true, diceResult:PRE_DICE_RESULTS });
+  });
+
+  // サイコロの役選択イベント時の処理
+  socket.on("rollSelect", (data)=>{
+
+    // トークンをチェック
+    if(!authToken(socket.id, data.token))
+    {
+      io.to(socket.id).emit("rollSelect-result", {status:false, message:"不正なトークンです"});
+      return(false);
+    }
+    
+    // ターンプレイヤーかチェック
+    if (MEMBER[socket.id].count != CUR_TURN_PLAYER_TOKEN)
+    {
+      io.to(socket.id).emit("rollSelect-result", {status:false, message:"ターンプレイヤーではありません"});
+      return(false);
+    }
+
+    // もしも１度もサイコロを振っていなければ
+    if (REROLL_COUNT == 3)
+    {
+      io.to(socket.id).emit("rollSelect-result", {status:false, message:"サイコロを振ってください"});
+      return(false);
+    }
+    
+    // 頭が回らないので脳死ごり押し
+    let kindDiceCounts = [0, 0, 0, 0, 0];
+    let sum = 0;
+    let noKindDiceType = 0;
+
+    switch (data.selectedRoll)
+    {
+      case "1":
+        
+        if (MEMBER[socket.id].score.aces.using)
+        {
+          io.to(socket.id).emit("rollSelect-result", {status:false, message:"その役は使用済みです"});
+          return(false);
+        }
+
+        MEMBER[socket.id].score.aces.using = true;
+
+        for(let i = 0; i < PRE_DICE_RESULTS.length; i++)
+        {
+          if (PRE_DICE_RESULTS[i] == 1) MEMBER[socket.id].score.aces.point += 1;
+        }
+        break;
+
+      case "2":
+        
+        if (MEMBER[socket.id].score.twos.using)
+        {
+          io.to(socket.id).emit("rollSelect-result", {status:false, message:"その役は使用済みです"});
+          return(false);
+        }
+
+        MEMBER[socket.id].score.twos.using = true;
+
+        for(let i = 0; i < PRE_DICE_RESULTS.length; i++)
+        {
+          if (PRE_DICE_RESULTS[i] == 2) MEMBER[socket.id].score.twos.point += 2;
+        }
+        break;
+
+      case "3":
+        
+        if (MEMBER[socket.id].score.threes.using)
+        {
+          io.to(socket.id).emit("rollSelect-result", {status:false, message:"その役は使用済みです"});
+          return(false);
+        }
+
+        MEMBER[socket.id].score.threes.using = true;
+
+        for(let i = 0; i < PRE_DICE_RESULTS.length; i++)
+        {
+          if (PRE_DICE_RESULTS[i] == 3) MEMBER[socket.id].score.threes.point += 3;
+        }
+        break;
+
+      case "4":
+        
+        if (MEMBER[socket.id].score.fours.using)
+        {
+          io.to(socket.id).emit("rollSelect-result", {status:false, message:"その役は使用済みです"});
+          return(false);
+        }
+
+        MEMBER[socket.id].score.fours.using = true;
+
+        for(let i = 0; i < PRE_DICE_RESULTS.length; i++)
+        {
+          if (PRE_DICE_RESULTS[i] == 4) MEMBER[socket.id].score.fours.point += 4;
+        }
+        break;
+
+      case "5":
+        
+        if (MEMBER[socket.id].score.fives.using)
+        {
+          io.to(socket.id).emit("rollSelect-result", {status:false, message:"その役は使用済みです"});
+          return(false);
+        }
+
+        MEMBER[socket.id].score.fives.using = true;
+
+        for(let i = 0; i < PRE_DICE_RESULTS.length; i++)
+        {
+          if (PRE_DICE_RESULTS[i] == 5) MEMBER[socket.id].score.fives.point += 5;
+        }
+        break;
+
+      case "6":
+        
+        if (MEMBER[socket.id].score.sixes.using)
+        {
+          io.to(socket.id).emit("rollSelect-result", {status:false, message:"その役は使用済みです"});
+          return(false);
+        }
+
+        MEMBER[socket.id].score.sixes.using = true;
+
+        for(let i = 0; i < PRE_DICE_RESULTS.length; i++)
+        {
+          if (PRE_DICE_RESULTS[i] == 6) MEMBER[socket.id].score.sixes.point += 6;
+        }
+        break;
+
+      case "7":
+        
+        if (MEMBER[socket.id].score.threeKind.using)
+        {
+          io.to(socket.id).emit("rollSelect-result", {status:false, message:"その役は使用済みです"});
+          return(false);
+        }
+
+        MEMBER[socket.id].score.threeKind.using = true;
+
+        for(let i = 0; i < PRE_DICE_RESULTS.length; i++)
+        {
+          sum += PRE_DICE_RESULTS[i];
+
+          kindDiceCounts[PRE_DICE_RESULTS[i] - 1]++;
+        }
+
+        if (kindDiceCounts[0] >= 3 || kindDiceCounts[1] >= 3 || kindDiceCounts[2] >= 3 || kindDiceCounts[3] >= 3 || kindDiceCounts[4] >= 3)
+        {
+          MEMBER[socket.id].score.threeKind.point = sum;
+        }
+        break;
+
+      case "8":
+        
+        if (MEMBER[socket.id].score.fourKind.using)
+        {
+          io.to(socket.id).emit("rollSelect-result", {status:false, message:"その役は使用済みです"});
+          return(false);
+        }
+
+        MEMBER[socket.id].score.fourKind.using = true;
+
+        for(let i = 0; i < PRE_DICE_RESULTS.length; i++)
+        {
+          sum += PRE_DICE_RESULTS[i];
+
+          kindDiceCounts[PRE_DICE_RESULTS[i] - 1]++;
+        }
+
+        if (kindDiceCounts[0] >= 4 || kindDiceCounts[1] >= 4 || kindDiceCounts[2] >= 4 || kindDiceCounts[3] >= 4 || kindDiceCounts[4] >= 4)
+        {
+          MEMBER[socket.id].score.fourKind.point = sum;
+        }
+        break;
+
+      case "9":
+        
+        if (MEMBER[socket.id].score.fullHouse.using)
+        {
+          io.to(socket.id).emit("rollSelect-result", {status:false, message:"その役は使用済みです"});
+          return(false);
+        }
+
+        MEMBER[socket.id].score.fullHouse.using = true;
+
+        for(let i = 0; i < PRE_DICE_RESULTS.length; i++)
+        {
+          kindDiceCounts[PRE_DICE_RESULTS[i] - 1]++;
+        }
+
+        for(let i = 0; i < kindDiceCounts.length; i++)
+        {
+          if (kindDiceCounts[i] == 0) noKindDiceType++;
+        }
+
+        
+
+        if (noKindDiceType == 3)
+        {
+          console.log("full");
+          MEMBER[socket.id].score.fullHouse.point = 25;
+        }
+        break;
+
+      case "10":
+        
+        if (MEMBER[socket.id].score.sStraight.using)
+        {
+          io.to(socket.id).emit("rollSelect-result", {status:false, message:"その役は使用済みです"});
+          return(false);
+        }
+
+        MEMBER[socket.id].score.sStraight.using = true;
+
+        for(let i = 0; i < PRE_DICE_RESULTS.length; i++)
+        {
+          kindDiceCounts[PRE_DICE_RESULTS[i] - 1]++;
+        }
+
+        if (kindDiceCounts[1] == 0 || kindDiceCounts[2] == 0 || kindDiceCounts[3] == 0) break;
+
+        for(let i = 0; i < kindDiceCounts.length; i++)
+        {
+          if (kindDiceCounts[i] == 0) noKindDiceType++;
+        }
+
+        if (noKindDiceType == 1)
+        {
+          MEMBER[socket.id].score.sStraight.point = 30;
+        }
+
+        break;
+
+      case "11":
+        
+        if (MEMBER[socket.id].score.lStraight.using)
+        {
+          io.to(socket.id).emit("rollSelect-result", {status:false, message:"その役は使用済みです"});
+          return(false);
+        }
+
+        MEMBER[socket.id].score.lStraight.using = true;
+
+        for(let i = 0; i < PRE_DICE_RESULTS.length; i++)
+        {
+          kindDiceCounts[PRE_DICE_RESULTS[i] - 1]++;
+
+          if (kindDiceCounts[PRE_DICE_RESULTS[i] - 1] > 1) break;
+        }
+
+        MEMBER[socket.id].score.lStraight.point = 40;
+        break;
+
+      case "12":
+        
+        if (MEMBER[socket.id].score.chance.using)
+        {
+          io.to(socket.id).emit("rollSelect-result", {status:false, message:"その役は使用済みです"});
+          return(false);
+        }
+
+        MEMBER[socket.id].score.chance.using = true;
+
+        for(let i = 0; i < PRE_DICE_RESULTS.length; i++)
+        {
+          MEMBER[socket.id].score.chance.point += PRE_DICE_RESULTS[i];
+        }
+        break;
+
+      case "13":
+        
+        if (MEMBER[socket.id].score.yahtzee.using)
+        {
+          io.to(socket.id).emit("rollSelect-result", {status:false, message:"その役は使用済みです"});
+          return(false);
+        }
+
+        MEMBER[socket.id].score.yahtzee.using = true;
+
+        let preDiceResult = PRE_DICE_RESULTS[0];
+
+        for(let i = 1; i < PRE_DICE_RESULTS.length; i++)
+        {
+          if (preDiceResult != PRE_DICE_RESULTS[i]) break;
+        }
+
+        MEMBER[socket.id].score.yahtzee.point = 50;
+        break;
+    }
+
+    // ターンプレイヤーを更新する
+    let nextMember = false;
+    for (let i = 0; i < MEMBER_SORT.length; i++)
+    {
+      if (nextMember)
+      {
+        CUR_TURN_PLAYER_TOKEN = MEMBER[MEMBER_SORT[i]].count;
+        nextMember = false;
+        break;
+      }
+
+      if (CUR_TURN_PLAYER_TOKEN == MEMBER[MEMBER_SORT[i]].count) nextMember = true;
+    }
+    if (nextMember)
+    {
+      CUR_TURN_PLAYER_TOKEN = MEMBER[MEMBER_SORT[0]].count;
+    }
+
+    REROLL_COUNT = 3;
+    PRE_DICE_RESULTS = [ 0, 0, 0, 0, 0 ];
+
+    io.to(socket.id).emit("rollSelect-result", {status:true, score:MEMBER[socket.id].score });
+    
+    socket.broadcast.emit("update-score", { token: MEMBER[socket.id].count, score:MEMBER[socket.id].score });
   });
 
   // 強制的にSocket.ioサーバから切断された時に呼ばれる
   socket.on("disconnect", ()=>{
+
+    console.log(`exitUser: socketid=${socket.id}`);
 
     // 他のユーザーに切断された通知を飛ばす
     socket.broadcast.emit("member-quit", { token:MEMBER[socket.id].count });
@@ -223,7 +592,7 @@ function authToken(socketid, token)
  * @param   {string} socketid
  * @return  {array}
  */
-function getMemberList(socketid)
+function getOtherMemberList(socketid)
 {
   const list = [];
 
@@ -234,7 +603,7 @@ function getMemberList(socketid)
 
     if( id !== socketid )
     {
-      list.push({token:cur.count, score:cur.score});
+      list.push({token:cur.count, name:cur.name, score:cur.score });
     }
   }
   return(list);

@@ -28,9 +28,15 @@
 
 <!-- TitleScene -->
 <section id="titleScene">
+  
   <p>ヤッツィー（not ヨット）</p>
+  <p>あなたの名前を入力してください</p>
 
-  <button id="startBtn">対戦開始</button>
+  <form id="startBtn" autocomplete="off">
+    <input type="text" id="userName">
+    <button>対戦開始</button>
+  </form>
+
 </section>
 <!-- /TitleScene -->
 
@@ -45,6 +51,45 @@
 <!-- BattleScene -->
 <section id="battleScene">
   <canvas id="battlefield" width="600" height="400"></canvas>
+
+  <br>
+  <input type="checkbox" id="checkbox1">１つ目をキープ
+  <input type="checkbox" id="checkbox2">２つ目をキープ
+  <input type="checkbox" id="checkbox3">３つ目をキープ
+  <br>
+  <input type="checkbox" id="checkbox4">４つ目をキープ
+  <input type="checkbox" id="checkbox5">５つ目をキープ
+
+  <br>
+  <button id="diceRollBtn">サイコロを振る</button>
+
+  <br>
+  <br>
+  <form id="frm-roll">
+    <div id="frm-roll-select">
+      <input type="radio" id="radio-aces"       name="radio-rollSelect" value="1" checked> エースを選択する
+      <input type="radio" id="radio-twos"       name="radio-rollSelect" value="2">         ツーを選択する
+      <input type="radio" id="radio-threes"     name="radio-rollSelect" value="3">         スリーを選択する
+      <br>
+      <input type="radio" id="radio-fours"      name="radio-rollSelect" value="4">         フォーを選択する
+      <input type="radio" id="radio-fives"      name="radio-rollSelect" value="5">         ファイブを選択する
+      <input type="radio" id="radio-sixes"      name="radio-rollSelect" value="6">         シックスを選択する
+      <br>
+      <input type="radio" id="radio-threeKind"  name="radio-rollSelect" value="7">         スリーダイスを選択する
+      <input type="radio" id="radio-fourKind"   name="radio-rollSelect" value="8">         フォーダイスを選択する
+      <br>
+      <input type="radio" id="radio-fullHouse"  name="radio-rollSelect" value="9">         フルハウスを選択する
+      <br>
+      <input type="radio" id="radio-sStraight"  name="radio-rollSelect" value="10">        スモールストレートを選択する
+      <input type="radio" id="radio-lStraight"  name="radio-rollSelect" value="11">        ラージストレートを選択する
+      <br>
+      <input type="radio" id="radio-chance"     name="radio-rollSelect" value="12">        チャンスを選択する
+      <br>
+      <input type="radio" id="radio-yahtzee"    name="radio-rollSelect" value="13">        ヤッツィーを選択する
+    </div>
+    <button>役を選ぶ</button>
+  </form>
+
 </section>
 <!-- /BattleScene -->
 
